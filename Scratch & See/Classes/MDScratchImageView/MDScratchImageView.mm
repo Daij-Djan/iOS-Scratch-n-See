@@ -1,27 +1,27 @@
 //
-// Scratch and See 
+// Scratch and See
 //
-// The project provides en effect when the user swipes the finger over one texture 
-// and by swiping reveals the texture underneath it. The effect can be applied for 
+// The project provides en effect when the user swipes the finger over one texture
+// and by swiping reveals the texture underneath it. The effect can be applied for
 // scratch-card action or wiping a misted glass.
 //
 // Copyright (C) 2012 http://moqod.com Andrew Kopanev <andrew@moqod.com>
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy 
-// of this software and associated documentation files (the "Software"), to deal 
-// in the Software without restriction, including without limitation the rights 
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
-// of the Software, and to permit persons to whom the Software is furnished to do so, 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do so,
 // subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all 
+// The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
 // PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 //
 
@@ -75,8 +75,15 @@ inline CGPoint scalePoint(CGPoint point, CGSize previousSize, CGSize currentSize
 
 #pragma mark - inner initalization
 
+- (id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if(self) {
+        self.userInteractionEnabled = YES;
+    }
+    return self;
+}
+
 - (void)initialize {
-	self.userInteractionEnabled = YES;
 	_tilesFilled = 0;
 	
 	if (nil == self.image) {
@@ -139,11 +146,11 @@ inline CGPoint scalePoint(CGPoint point, CGSize previousSize, CGSize currentSize
 #pragma mark - UIResponder
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
-	[super setImage:[self addTouches:touches]];
+    [super setImage:[self addTouches:touches]];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
-	[super setImage:[self addTouches:touches]];
+    [super setImage:[self addTouches:touches]];
 }
 
 #pragma mark -
@@ -190,7 +197,7 @@ inline CGPoint scalePoint(CGPoint point, CGSize previousSize, CGSize currentSize
 			(*fillTileFunc)(self,@selector(fillTileWithTwoPoints:end:),rect.origin, prevPoint);
 		}
 	}
-
+    
 	// was _tilesFilled changed?
 	if(tempFilled != _tilesFilled) {
 		[_delegate mdScratchImageView:self didChangeMaskingProgress:self.maskingProgress];
@@ -202,7 +209,7 @@ inline CGPoint scalePoint(CGPoint point, CGSize previousSize, CGSize currentSize
 	return image;
 }
 
-/* 
+/*
  * filling tile with one ellipse
  */
 -(void)fillTileWithPoint:(CGPoint) point{
@@ -237,6 +244,76 @@ inline CGPoint scalePoint(CGPoint point, CGSize previousSize, CGSize currentSize
 		i.y += incrementerFory;
 	}
 	(*fillTileFunc)(self,@selector(fillTileWithPoint:),end);
+}
+
+#pragma mark - manual reveals
+
+- (void)revealEllipseAtPoint:(CGPoint)touchPoint radius:(CGFloat)r {
+    if(r <= 0)
+        r = _radius;
+    
+	int tempFilled = _tilesFilled;
+	CGSize size = self.image.size;
+	CGContextRef ctx = _imageContext;
+	
+	CGContextSetFillColorWithColor(ctx,[UIColor clearColor].CGColor);
+	CGContextSetStrokeColorWithColor(ctx,[UIColor colorWithRed:0 green:0 blue:0 alpha:0].CGColor);
+    
+    CGRect rect = CGRectMake(touchPoint.x, touchPoint.y, 2 * r, 2 * r);
+//    rect.origin = fromUItoQuartz(rect.origin, self.bounds.size);
+    
+    // on begin, we just draw ellipse
+//    rect.origin = scalePoint(rect.origin, self.bounds.size, size);
+//    rect.origin.x -= r;
+//    rect.origin.y -= r;
+    CGContextAddEllipseInRect(ctx, rect);
+    CGContextFillPath(ctx);
+    [self fillTileWithPoint:rect.origin];
+    
+    // was _tilesFilled changed?
+    if(tempFilled != _tilesFilled) {
+        [_delegate mdScratchImageView:self didChangeMaskingProgress:self.maskingProgress];
+    }
+    
+    CGImageRef cgImage = CGBitmapContextCreateImage(ctx);
+    UIImage *image = [UIImage imageWithCGImage:cgImage];
+    CGImageRelease(cgImage);
+    
+    [super setImage:image];
+}
+
+- (void)revealSquareAtPoint:(CGPoint)touchPoint length:(CGFloat)l {
+    if(l <= 0)
+        l = _radius * 2;
+
+    int tempFilled = _tilesFilled;
+//    CGSize size = self.image.size;
+    CGContextRef ctx = _imageContext;
+    
+    CGContextSetFillColorWithColor(ctx,[UIColor clearColor].CGColor);
+    CGContextSetStrokeColorWithColor(ctx,[UIColor colorWithRed:0 green:0 blue:0 alpha:0].CGColor);
+    
+    CGRect rect = CGRectMake(touchPoint.x, touchPoint.y, l, l);
+//    rect.origin = fromUItoQuartz(rect.origin, self.bounds.size);
+    
+    // on begin, we just draw ellipse
+//    rect.origin = scalePoint(rect.origin, self.bounds.size, size);
+//    rect.origin.x -= l;
+//    rect.origin.y -= l;
+    CGContextAddRect(ctx, rect);
+    CGContextFillPath(ctx);
+    [self fillTileWithPoint:rect.origin];
+    
+    // was _tilesFilled changed?
+    if(tempFilled != _tilesFilled) {
+        [_delegate mdScratchImageView:self didChangeMaskingProgress:self.maskingProgress];
+    }
+    
+    CGImageRef cgImage = CGBitmapContextCreateImage(ctx);
+    UIImage *image = [UIImage imageWithCGImage:cgImage];
+    CGImageRelease(cgImage);
+    
+    [super setImage:image];
 }
 
 @end
